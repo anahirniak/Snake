@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Snake Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        #gameContainer {
+            display: flex;
+            gap: 20px;
+        }
+        #controls {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            width: 200px;
+        }
+        canvas {
+            border: 2px solid #333;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            display: none;
+        }
+        #score {
+            font-size: 24px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        button, select, input[type="color"] {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        button:hover, select:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+        select, input[type="color"] {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        label {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        #thumbnail {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #333;
+            background-color: #e8f5e9;
+            width: 600px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+        }
+        #thumbnail h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #333;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        #startButton {
+            font-size: 24px;
+            padding: 15px 30px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #startButton:hover {
+            background-color: #45a049;
+            transform: scale(1.1);
+            box-shadow: 0 6px 8px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="controls">
+            <button id="restartButton">Restart</button>
+            <label for="gameMode">Game Mode:</label>
+            <select id="gameMode">
+                <option value="classic">Classic</option>
+                <option value="noWalls">No Walls</option>
+                <option value="obstacles">Obstacles</option>
+                <option value="speedUp">Speed Up</option>
+                <option value="shrinking">Shrinking</option>
+                <option value="blender">Blender</option>
+            </select>
+            <label for="speed">Speed:</label>
+            <select id="speed">
+                <option value="slow">Slow</option>
+                <option value="medium" selected>Medium</option>
+                <option value="fast">Fast</option>
+            </select>
+            <label for="snakeColor">Snake Color:</label>
+            <input type="color" id="snakeColor" value="#4CAF50">
+        </div>
+        <div>
+            <canvas id="gameCanvas" width="600" height="600"></canvas>
+            <div id="score">Score: 0</div>
+        </div>
+    </div>
+    <div id="thumbnail">
+        <h1>Ultimate Snake Game</h1>
+        <button id="startButton">Start Game</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const gameModeSelect = document.getElementById('gameMode');
+        const speedSelect = document.getElementById('speed');
+        const snakeColorInput = document.getElementById('snakeColor');
+        const thumbnail = document.getElementById('thumbnail');
+
+        const gridSize = 25;
+        const tileCount = canvas.width / gridSize;
+
+        let snake = [{x: 10, y: 10}];
+        let food = {x: 15, y: 15};
+        let dx = 0;
+        let dy = 0;
+        let score = 0;
+        let gameLoop;
+        let gameSpeed = 100;
+        let gameMode = 'classic';
+        let obstacles = [];
+        let snakeColor = '#4CAF50';
+        let isGameRunning = false;
+
+        function drawGame() {
+            clearCanvas();
+            moveSnake();
+            drawSnake();
+            drawFood();
+            if (['obstacles', 'blender'].includes(gameMode)) drawObstacles();
+            checkCollision();
+            updateScore();
+
+            if (gameMode === 'speedUp') {
+                gameSpeed = Math.max(50, 100 - score * 2);
+                clearInterval(gameLoop);
+                gameLoop = setInterval(drawGame, gameSpeed);
+            }
+
+            if (gameMode === 'shrinking' || gameMode === 'blender') {
+                if (snake.length > 3 && Math.random() < 0.05) {
+                    snake.pop();
+                }
+            }
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = '#e8f5e9';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function moveSnake() {
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+            
+            if (['noWalls', 'blender'].includes(gameMode)) {
+                if (head.x < 0) head.x = tileCount - 1;
+                if (head.x >= tileCount) head.x = 0;
+                if (head.y < 0) head.y = tileCount - 1;
+                if (head.y >= tileCount) head.y = 0;
+            }
+
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                generateFood();
+                score++;
+            } else {
+                snake.pop();
+            }
+        }
+
+        function drawSnake() {
+            snake.forEach((segment, index) => {
+                ctx.fillStyle = index === 0 ? snakeColor : lightenColor(snakeColor, 20);
+                ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+                ctx.strokeStyle = '#81c784';
+                ctx.strokeRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+            });
+        }
+
+        function drawFood() {
+            ctx.fillStyle = '#e53935';
+            ctx.beginPath();
+            ctx.arc((food.x * gridSize) + gridSize/2, (food.y * gridSize) + gridSize/2, gridSize/2 - 2, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function generateFood() {
+            do {
+                food.x = Math.floor(Math.random() * tileCount);
+                food.y = Math.floor(Math.random() * tileCount);
+            } while (snake.some(segment => segment.x === food.x && segment.y === food.y) ||
+                     obstacles.some(obs => obs.x === food.x && obs.y === food.y));
+        }
+
+        function checkCollision() {
+            const head = snake[0];
+
+            if (!['noWalls', 'blender'].includes(gameMode) && (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount)) {
+                gameOver();
+            }
+
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    gameOver();
+                }
+            }
+
+            if (['obstacles', 'blender'].includes(gameMode) && obstacles.some(obs => obs.x === head.x && obs.y === head.y)) {
+                gameOver();
+            }
+        }
+
+        function gameOver() {
+            clearInterval(gameLoop);
+            isGameRunning = false;
+            alert(`Game Over! Your score: ${score}`);
+            resetGame();
+            showThumbnail();
+        }
+
+        function resetGame() {
+            snake = [{x: 10, y: 10}];
+            generateFood();
+            dx = 0;
+            dy = 0;
+            score = 0;
+            updateScore();
+            if (['obstacles', 'blender'].includes(gameMode)) generateObstacles();
+        }
+
+        function updateScore() {
+            scoreElement.textContent = `Score: ${score}`;
+        }
+
+        function changeDirection(event) {
+            const key = event.key.toLowerCase();
+
+            const goingUp = dy === -1;
+            const goingDown = dy === 1;
+            const goingRight = dx === 1;
+            const goingLeft = dx === -1;
+
+            if ((key === 'arrowleft' || key === 'a') && !goingRight) {
+                dx = -1;
+                dy = 0;
+            }
+
+            if ((key === 'arrowup' || key === 'w') && !goingDown) {
+                dx = 0;
+                dy = -1;
+            }
+
+            if ((key === 'arrowright' || key === 'd') && !goingLeft) {
+                dx = 1;
+                dy = 0;
+            }
+
+            if ((key === 'arrowdown' || key === 's') && !goingUp) {
+                dx = 0;
+                dy = 1;
+            }
+        }
+
+        function generateObstacles() {
+            obstacles = [];
+            for (let i = 0; i < 5; i++) {
+                let obstacle;
+                do {
+                    obstacle = {
+                        x: Math.floor(Math.random() * tileCount),
+                        y: Math.floor(Math.random() * tileCount)
+                    };
+                } while (snake.some(segment => segment.x === obstacle.x && segment.y === obstacle.y) ||
+                         food.x === obstacle.x && food.y === obstacle.y);
+                obstacles.push(obstacle);
+            }
+        }
+
+        function drawObstacles() {
+            ctx.fillStyle = '#795548';
+            obstacles.forEach(obstacle => {
+                ctx.fillRect(obstacle.x * gridSize, obstacle.y * gridSize, gridSize - 2, gridSize - 2);
+            });
+        }
+
+        function lightenColor(color, percent) {
+            const num = parseInt(color.replace("#",""), 16),
+                  amt = Math.round(2.55 * percent),
+                  R = (num >> 16) + amt,
+                  G = (num >> 8 & 0x00FF) + amt,
+                  B = (num & 0x0000FF) + amt;
+            return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+        }
+
+        function showThumbnail() {
+            thumbnail.style.display = 'flex';
+            canvas.style.display = 'none';
+            document.getElementById('controls').style.display = 'none';
+        }
+
+        function hideThumbnail() {
+            thumbnail.style.display = 'none';
+            canvas.style.display = 'block';
+            document.getElementById('controls').style.display = 'flex';
+        }
+
+        function startGame() {
+            if (!isGameRunning) {
+                clearInterval(gameLoop);
+                resetGame();
+                gameLoop = setInterval(drawGame, gameSpeed);
+                isGameRunning = true;
+                hideThumbnail();
+            }
+        }
+
+        startButton.addEventListener('click', startGame);
+
+        restartButton.addEventListener('click', () => {
+            clearInterval(gameLoop);
+            resetGame();
+            gameLoop = setInterval(drawGame, gameSpeed);
+            isGameRunning = true;
+        });
+
+        gameModeSelect.addEventListener('change', (e) => {
+            gameMode = e.target.value;
+            resetGame();
+        });
+
+        speedSelect.addEventListener('change', (e) => {
+            switch (e.target.value) {
+                case 'slow':
+                    gameSpeed = 150;
+                    break;
+                case 'medium':
+                    gameSpeed = 100;
+                    break;
+                case 'fast':
+                    gameSpeed = 50;
+                    break;
+            }
+            if (gameLoop) {
+                clearInterval(gameLoop);
+                gameLoop = setInterval(drawGame, gameSpeed);
+            }
+        });
+
+        snakeColorInput.addEventListener('change', (e) => {
+            snakeColor = e.target.value;
+        });
+
+        document.addEventListener('keydown', changeDirection);
+
+        showThumbnail();
+        resetGame();
+    </script>
+</body>
+</html>
