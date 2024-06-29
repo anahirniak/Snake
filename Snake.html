@@ -110,6 +110,9 @@
                 <option value="speedUp">Speed Up</option>
                 <option value="shrinking">Shrinking</option>
                 <option value="blender">Blender</option>
+                <option value="teleport">Teleport</option>
+                <option value="reverse">Reverse</option>
+                <option value="growFast">Grow Fast</option>
             </select>
             <label for="speed">Speed:</label>
             <select id="speed">
@@ -185,6 +188,12 @@
 
         function moveSnake() {
             const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+            if (gameMode === 'teleport') {
+    if (head.x < 0) head.x = tileCount - 1;
+    if (head.x >= tileCount) head.x = 0;
+    if (head.y < 0) head.y = tileCount - 1;
+    if (head.y >= tileCount) head.y = 0;
+}
             
             if (['noWalls', 'blender'].includes(gameMode)) {
                 if (head.x < 0) head.x = tileCount - 1;
@@ -225,6 +234,14 @@
                 food.y = Math.floor(Math.random() * tileCount);
             } while (snake.some(segment => segment.x === food.x && segment.y === food.y) ||
                      obstacles.some(obs => obs.x === food.x && obs.y === food.y));
+                     if (gameMode === 'reverse') {
+    snake.reverse();
+    [dx, dy] = [-dx, -dy];
+}
+if (gameMode === 'growFast') {
+    snake.push({...snake[snake.length - 1]});
+    snake.push({...snake[snake.length - 1]});
+}
         }
 
         function checkCollision() {
