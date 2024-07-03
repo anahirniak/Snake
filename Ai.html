@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script type='text/javascript' src='./apikey.js'></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Chatbot</title>
@@ -258,7 +259,6 @@
     </div>
 
     <script>
-        const API_KEY = 'YOUR API KEY HERE'; // Replace with your actual API key
         const API_URL = 'https://generativelanguage.googleapis.com/v1beta2/models/chat-bison-001:generateMessage';
         let isWaitingForResponse = false;
         let conversationHistory = [];
